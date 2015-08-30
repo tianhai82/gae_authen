@@ -14,16 +14,12 @@ type User struct {
 	SaltedHash []byte
 }
 type Authen struct {
-	c appengine.Context
+	c          appengine.Context
+	privateKey []byte
 }
 
-var (
-	privateKey []byte
-)
-
-func NewAuthen(context appengine.Context) *Authen {
-	privateKey = []byte("Ce7BTYq1Qm6wa2ZmHb6oNE8JPmj+BvxLFZUJprIByl0iS9OoxojJF8As33sXF5W5h5964suovxM9kWUp1IXIWw==")
-	return &Authen{context}
+func NewAuthen(context appengine.Context, key []byte) *Authen {
+	return &Authen{context, key}
 }
 
 func (authen *Authen) CreateUser(username string, password []byte) (string, error) {
@@ -48,22 +44,21 @@ func (authen *Authen) Login(username string, password []byte) (string, error) {
 	if err != nil {
 		return "", new(WrongPasswordError)
 	}
-	token, err := getJwtForUser(u.Username)
+	token, err := authen.getJwtForUser(u.Username)
 	return token, nil
 }
 
-func getJwtForUser(username string) (string, error) {
+func (authen *Authen) getJwtForUser(username string) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS512)
 	token.Claims["username"] = username
 	token.Claims["iss"] = "SttaCompWeb"
 	token.Claims["iat"] = time.Now().Unix()
 	token.Claims["exp"] = time.Now().Add(time.Minute * 30).Unix()
-	return token.SignedString(privateKey)
+	return token.SignedString(authen.privateKey)
 }
 
-func ParseToken(tokenString string) (*jwt.Token, error) {
+func (authen *Authen) ParseToken(tokenString string) (*jwt.Token, error) {
 	myToken, err := jwt.Parse(tokenString, func(tokenWithin *jwt.Token) (interface{}, error) {
-		// Don't forget to validate the alg is what you expect:
 		if _, ok := tokenWithin.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", tokenWithin.Header["alg"])
 		}
@@ -77,7 +72,7 @@ func ParseToken(tokenString string) (*jwt.Token, error) {
 		if exp < float64(time.Now().Unix()) {
 			return nil, fmt.Errorf("Token expired")
 		}
-		return []byte(""), nil
+		return authen.privateKey, nil
 	})
 	if err != nil {
 		return nil, err
