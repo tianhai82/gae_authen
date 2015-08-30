@@ -9,7 +9,6 @@ import (
 	"testing"
 )
 
-/*
 func TestCreateUser(t *testing.T) {
 	c, err := aetest.NewContext(nil)
 	if err != nil {
@@ -49,7 +48,6 @@ func TestCreateUser(t *testing.T) {
 		t.Errorf("Wrong password is tried but WrongPasswordError is not return")
 	}
 }
-*/
 func TestGetJwtForUser(t *testing.T) {
 	c, err := aetest.NewContext(nil)
 	if err != nil {
